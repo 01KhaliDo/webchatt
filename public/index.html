@@ -71,44 +71,63 @@
   const typingIndicator = document.getElementById('typing-indicator');
 
   socket.on('user list', (usernames) => {
-    usersList.innerHTML = '';
-    usernames.forEach(username => {
-      if (username === myUsername) return;
-      const li = document.createElement('li');
+  usersList.innerHTML = '';
+  usernames.forEach(username => {
+    if (username === myUsername) return;
 
-      // Visa namn + olästa meddelanden om > 0
-      const unread = unreadCounts[username] || 0;
-      li.textContent = username + (unread > 0 ? ` (${unread})` : '');
-      
-      li.classList.add('user');
-      if (username === selectedUser) li.classList.add('selected');
-      li.onclick = () => {
-        selectedUser = username;
-        chatWith.textContent = `Chatta med: ${selectedUser}`;
-        input.disabled = false;
-        sendBtn.disabled = false;
-        typingIndicator.textContent = '';
+    const li = document.createElement('li');
+    li.classList.add('user');
+    if (username === selectedUser) li.classList.add('selected');
 
-        // Nollställ olästa för vald användare
-        unreadCounts[selectedUser] = 0;
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'username';
+    nameSpan.textContent = username;
+    li.appendChild(nameSpan);
 
-        renderChat(selectedUser);
-        updateUserList();
-      };
-      usersList.appendChild(li);
-    });
+    const unread = unreadCounts[username] || 0;
+    if (unread > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = unread;
+      li.appendChild(badge);
+    }
+
+    li.onclick = () => {
+      selectedUser = username;
+      chatWith.textContent = `Chatta med: ${selectedUser}`;
+      input.disabled = false;
+      sendBtn.disabled = false;
+      typingIndicator.textContent = '';
+      unreadCounts[selectedUser] = 0;
+
+      renderChat(selectedUser);
+      updateUserList();
+    };
+
+    usersList.appendChild(li);
   });
+});
+
 
   function updateUserList() {
-    Array.from(usersList.children).forEach(li => {
-      // Rensa texten innan vi sätter den igen (för att uppdatera olästa)
-      const username = li.textContent.replace(/\s\(\d+\)$/, '');
-      li.classList.toggle('selected', username === selectedUser);
+  Array.from(usersList.children).forEach(li => {
+    const nameSpan = li.querySelector('.username');
+    const username = nameSpan?.textContent;
+    li.classList.toggle('selected', username === selectedUser);
 
-      const unread = unreadCounts[username] || 0;
-      li.textContent = username + (unread > 0 ? ` (${unread})` : '');
-    });
-  }
+    const oldBadge = li.querySelector('.badge');
+    if (oldBadge) oldBadge.remove();
+
+    const unread = unreadCounts[username] || 0;
+    if (unread > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = unread;
+      li.appendChild(badge);
+    }
+  });
+}
+
 
   // Lägg till meddelande i chatthistorik
   function addMessageToHistory(username, from, message) {

@@ -125,7 +125,39 @@ body {
   100% {
     background-color: transparent;
   }
+} 
+
+.user {
+  position: relative;
+  padding-right: 30px;
+  cursor: pointer;
 }
+
+.badge {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  transform: translateY(-50%);
+  background: red;
+  color: white;
+  font-size: 0.7em;
+  font-weight: bold;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%; /* Viktig för rund form */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+}
+
+
+.username {
+  display: inline-block;
+}
+
 
 
 /* Responsiv layout för mobil */
