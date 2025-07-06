@@ -2,7 +2,8 @@
 <html>
 <head>
   <title>Privat Webbchatt</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css" /> 
+  <audio id="notification-sound" src="notify.mp3" preload="auto"></audio>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
@@ -20,103 +21,113 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script>
-    let myUsername = '';
-    let selectedUser = null;
+<script>
+  let myUsername = '';
+  let selectedUser = null;
 
-    // Fråga efter användarnamn direkt när sidan laddas
-    while (!myUsername) {
-      myUsername = prompt('Ange ditt användarnamn:');
+  // Fråga efter användarnamn direkt när sidan laddas
+  while (!myUsername) {
+    myUsername = prompt('Ange ditt användarnamn:');
+  }
+
+  // Initiera socket med reconnect-inställningar
+  const socket = io({
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 20000,
+  });
+
+  // Skicka användarnamn när ansluten (första gången & reconnect)
+  function setUsername() {
+    socket.emit('set username', myUsername);
+  }
+  socket.on('connect', () => {
+    console.log('Ansluten till servern');
+    setUsername();
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.log('Frånkopplad:', reason);
+    if (reason === 'io server disconnect') {
+      socket.connect();
     }
+  });
 
-    // Initiera socket med reconnect-inställningar
-    const socket = io({
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-    });
+  socket.on('connect_error', (error) => {
+    console.log('Anslutningsfel:', error);
+  });
 
-    // Skicka användarnamn när ansluten (första gången & reconnect)
-    function setUsername() {
-      socket.emit('set username', myUsername);
-    }
-    socket.on('connect', () => {
-      console.log('Ansluten till servern');
-      setUsername();
-    });
+  const usersList = document.getElementById('users');
+  const messages = document.getElementById('messages');
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('send');
+  const chatWith = document.getElementById('chat-with');
 
-    socket.on('disconnect', (reason) => {
-      console.log('Frånkopplad:', reason);
-      if (reason === 'io server disconnect') {
-        // Servern avvisade anslutningen, försök reconnect manuellt
-        socket.connect();
-      }
-    });
-
-    socket.on('connect_error', (error) => {
-      console.log('Anslutningsfel:', error);
-    });
-
-    const usersList = document.getElementById('users');
-    const messages = document.getElementById('messages');
-    const form = document.getElementById('form');
-    const input = document.getElementById('input');
-    const sendBtn = document.getElementById('send');
-    const chatWith = document.getElementById('chat-with');
-
-    // Visa användarlistan
-    socket.on('user list', (usernames) => {
-      usersList.innerHTML = '';
-      usernames.forEach(username => {
-        if(username === myUsername) return; // visa inte dig själv i listan
-        const li = document.createElement('li');
-        li.textContent = username;
-        li.classList.add('user');
-        if(username === selectedUser) li.classList.add('selected');
-        li.onclick = () => {
-          selectedUser = username;
-          chatWith.textContent = `Chatta med: ${selectedUser}`;
-          input.disabled = false;
-          sendBtn.disabled = false;
-          messages.innerHTML = ''; // rensa gamla meddelanden
-          updateUserList();
-        };
-        usersList.appendChild(li);
-      });
-    });
-
-    function updateUserList() {
-      Array.from(usersList.children).forEach(li => {
-        li.classList.toggle('selected', li.textContent === selectedUser);
-      });
-    }
-
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      if(input.value && selectedUser) {
-        // Skicka privat meddelande
-        socket.emit('private message', {
-          to: selectedUser,
-          message: input.value
-        });
-        addMessage(`Du till ${selectedUser}: ${input.value}`);
-        input.value = '';
-      }
-    });
-
-    // Visa privata meddelanden
-    socket.on('private message', ({ from, message }) => {
-      addMessage(`${from} till dig: ${message}`);
-    });
-
-    function addMessage(msg) {
+  // Visa användarlistan
+  socket.on('user list', (usernames) => {
+    usersList.innerHTML = '';
+    usernames.forEach(username => {
+      if (username === myUsername) return;
       const li = document.createElement('li');
-      li.textContent = msg;
-      messages.appendChild(li);
-      messages.scrollTop = messages.scrollHeight;
+      li.textContent = username;
+      li.classList.add('user');
+      if (username === selectedUser) li.classList.add('selected');
+      li.onclick = () => {
+        selectedUser = username;
+        chatWith.textContent = `Chatta med: ${selectedUser}`;
+        input.disabled = false;
+        sendBtn.disabled = false;
+        messages.innerHTML = '';
+        updateUserList();
+      };
+      usersList.appendChild(li);
+    });
+  });
+
+  function updateUserList() {
+    Array.from(usersList.children).forEach(li => {
+      li.classList.toggle('selected', li.textContent === selectedUser);
+    });
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (input.value && selectedUser) {
+      socket.emit('private message', {
+        to: selectedUser,
+        message: input.value
+      });
+      addMessage(`Du till ${selectedUser}: ${input.value}`);
+      input.value = '';
     }
-  </script>
+  });
+
+  // Visa privata meddelanden
+  socket.on('private message', ({ from, message }) => {
+    addMessage(`${from} till dig: ${message}`);
+
+    // 🔔 Notifiering om meddelandet inte är från aktiv användare
+    if (from !== selectedUser) {
+      const audio = document.getElementById('notification-sound');
+      if (audio) audio.play();
+
+      const li = Array.from(usersList.children).find(li => li.textContent === from);
+      if (li) {
+        li.classList.add('notify');
+        setTimeout(() => li.classList.remove('notify'), 2000);
+      }
+    }
+  });
+
+  function addMessage(msg) {
+    const li = document.createElement('li');
+    li.textContent = msg;
+    messages.appendChild(li);
+    messages.scrollTop = messages.scrollHeight;
+  }
+</script>
 
 </body>
 </html>

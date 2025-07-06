@@ -137,3 +137,7 @@ body {
     width: 100%;
   }
 }
+.user.notify {
+  background-color: #ffeeba !important;
+  transition: background-color 0.5s ease;
+}
