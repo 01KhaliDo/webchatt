@@ -1,20 +1,20 @@
 /* Grundläggande stilar */
 body {
-  font-family: 'Segoe UI', Arial, sans-serif;
+  font-family: 'Segoe UI', sans-serif;
   margin: 0;
   padding: 0;
   display: flex;
   height: 100vh;
-  background-color: #f9f9f9;
+  background-color: #f2f2f2;
   color: #333;
 }
 
 /* Användarlistan */
 #user-list {
-  width: 220px;
-  background-color: #fff;
-  border-right: 1px solid #ccc;
-  padding: 12px;
+  width: 250px;
+  background-color: #ffffff;
+  border-right: 1px solid #ddd;
+  padding: 15px;
   box-sizing: border-box;
   overflow-y: auto;
 }
@@ -27,24 +27,28 @@ body {
 
 .user {
   cursor: pointer;
-  padding: 6px 8px;
+  padding: 8px;
   border-radius: 4px;
   transition: background 0.3s;
 }
 
-.user:hover,
+.user:hover {
+  background-color: #f0f0f0;
+}
+
 .user.selected {
   background-color: #d0e7ff;
 }
 
 /* Chattfönster */
 #chat {
-  flex-grow: 1;
+  flex: 1;
   display: flex;
   flex-direction: column;
   padding: 15px;
   box-sizing: border-box;
-  background-color: #fff;
+  background-color: #ffffff;
+  border-radius: 0;
   box-shadow: 0 0 10px rgba(0,0,0,0.05);
 }
 
@@ -57,12 +61,13 @@ body {
 /* Meddelanden */
 #messages {
   list-style: none;
-  padding: 10px;
+  padding: 0;
   flex-grow: 1;
   overflow-y: auto;
   margin-bottom: 15px;
   border: 1px solid #ccc;
   border-radius: 5px;
+  padding: 10px;
   background-color: #fefefe;
 }
 
@@ -82,12 +87,11 @@ body {
 }
 
 #input {
-  flex-grow: 1;
+  flex: 1;
   padding: 10px;
   font-size: 16px;
   border-radius: 4px;
   border: 1px solid #ccc;
-  box-sizing: border-box;
 }
 
 #send {
@@ -101,43 +105,48 @@ body {
 }
 
 #send:disabled {
-  background-color: #999;
+  background-color: #aaa;
   cursor: not-allowed;
+} 
+.user.highlight {
+  animation: glow 1s ease-out;
+} 
+
+.highlight {
+  background-color: #ffff99;
+  transition: background-color 0.5s ease;
 }
+
+
+@keyframes glow {
+  0% {
+    background-color: yellow;
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
 
 /* Responsiv layout för mobil */
 @media (max-width: 600px) {
   body {
     flex-direction: column;
-    height: auto;
   }
 
   #user-list {
     width: 100%;
+    min-height: 20%;
     border-right: none;
     border-bottom: 1px solid #ccc;
-    max-height: 150px;
   }
 
   #chat {
-    padding: 10px 5px;
+    padding: 5px; 
+    max-height: 500px;
   }
 
   #messages li {
     max-width: 100%;
   }
-
-  #form {
-    flex-direction: column;
-  }
-
-  #send {
-    margin-left: 0;
-    margin-top: 10px;
-    width: 100%;
-  }
-}
-.user.notify {
-  background-color: #ffeeba !important;
-  transition: background-color 0.5s ease;
 }

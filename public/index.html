@@ -2,178 +2,206 @@
 <html>
 <head>
   <title>Privat Webbchatt</title>
-  <link rel="stylesheet" href="style.css" /> 
-  <audio id="notification-sound" src="notify.mp3" preload="auto"></audio>
+  <link rel="stylesheet" href="style.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    /* Enkel stil för inloggningsformuläret */
-    #login {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      background: #f5f5f5;
-    }
-    #login form {
-      display: flex;
-      gap: 10px;
-    }
-    #login input {
-      padding: 10px;
-      font-size: 16px;
-    }
-    #login button {
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-  </style>
 </head>
 <body>
+  <div id="user-list">
+    <h3>Användare</h3>
+    <ul id="users"></ul>
+  </div>
 
-  <!-- Loginformulär -->
-  <div id="login">
-    <h3>Ange ditt användarnamn</h3>
-    <form id="login-form">
-      <input id="username-input" type="text" placeholder="Användarnamn" required autocomplete="off" />
-      <button type="submit">Starta chatten</button>
+  <div id="chat">
+    <h3 id="chat-with">Välj en användare att chatta med</h3>
+    <div id="typing-indicator" style="font-style: italic; color: gray; height: 20px;"></div>
+    <ul id="messages"></ul>
+    <form id="form" action="">
+      <input id="input" autocomplete="off" placeholder="Skriv meddelande..." disabled />
+      <button id="send" disabled>Skicka</button>
     </form>
   </div>
 
-  <!-- Chatten (gömd tills användaren loggat in) -->
-  <div id="chat-container" style="display:none;">
-    <div id="user-list">
-      <h3>Användare</h3>
-      <ul id="users"></ul>
-    </div>
-    <div id="chat">
-      <h3 id="chat-with">Välj en användare att chatta med</h3>
-      <ul id="messages"></ul>
-      <form id="form" action="">
-        <input id="input" autocomplete="off" placeholder="Skriv meddelande..." disabled />
-        <button id="send" disabled>Skicka</button>
-      </form>
-    </div>
-  </div>
-
   <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const loginForm = document.getElementById('login-form');
-    const usernameInput = document.getElementById('username-input');
-    const loginDiv = document.getElementById('login');
-    const chatContainer = document.getElementById('chat-container');
+<script>
+  let myUsername = '';
+  let selectedUser = null;
+  let typingTimeout;
 
-    const usersList = document.getElementById('users');
-    const messages = document.getElementById('messages');
-    const form = document.getElementById('form');
-    const input = document.getElementById('input');
-    const sendBtn = document.getElementById('send');
-    const chatWith = document.getElementById('chat-with');
+  // Chatthistorik per användare
+  const chatHistory = {}; // { username: [{ from, message, time }, ...] }
+  const unreadCounts = {}; // { username: number }
 
-    let myUsername = '';
-    let selectedUser = null;
-    let socket;
+  while (!myUsername) {
+    myUsername = prompt('Ange ditt användarnamn:');
+  }
 
-    loginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      myUsername = usernameInput.value.trim();
-      if (myUsername) {
-        // Dölj login och visa chatten
-        loginDiv.style.display = 'none';
-        chatContainer.style.display = 'flex';
+  const socket = io({
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 20000,
+  });
 
-        // Initiera socket
-        socket = io({
-          reconnectionAttempts: 5,
-          reconnectionDelay: 1000,
-          reconnectionDelayMax: 5000,
-          timeout: 20000,
-        });
+  function setUsername() {
+    socket.emit('set username', myUsername);
+  }
 
-        // Skicka användarnamn när ansluten
-        function setUsername() {
-          socket.emit('set username', myUsername);
-        }
-        socket.on('connect', () => {
-          console.log('Ansluten till servern');
-          setUsername();
-        });
+  socket.on('connect', () => {
+    console.log('Ansluten till servern');
+    setUsername();
+  });
 
-        socket.on('disconnect', (reason) => {
-          console.log('Frånkopplad:', reason);
-          if (reason === 'io server disconnect') {
-            socket.connect();
-          }
-        });
+  socket.on('disconnect', (reason) => {
+    console.log('Frånkopplad:', reason);
+    if (reason === 'io server disconnect') {
+      socket.connect();
+    }
+  });
 
-        socket.on('connect_error', (error) => {
-          console.log('Anslutningsfel:', error);
-        });
+  socket.on('connect_error', (error) => {
+    console.log('Anslutningsfel:', error);
+  });
 
-        // Visa användarlistan
-        socket.on('user list', (usernames) => {
-          usersList.innerHTML = '';
-          usernames.forEach(username => {
-            if (username === myUsername) return;
-            const li = document.createElement('li');
-            li.textContent = username;
-            li.classList.add('user');
-            if (username === selectedUser) li.classList.add('selected');
-            li.onclick = () => {
-              selectedUser = username;
-              chatWith.textContent = `Chatta med: ${selectedUser}`;
-              input.disabled = false;
-              sendBtn.disabled = false;
-              messages.innerHTML = '';
-              updateUserList();
-            };
-            usersList.appendChild(li);
-          });
-        });
+  const usersList = document.getElementById('users');
+  const messages = document.getElementById('messages');
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('send');
+  const chatWith = document.getElementById('chat-with');
+  const typingIndicator = document.getElementById('typing-indicator');
 
-        function updateUserList() {
-          Array.from(usersList.children).forEach(li => {
-            li.classList.toggle('selected', li.textContent === selectedUser);
-          });
-        }
+  socket.on('user list', (usernames) => {
+    usersList.innerHTML = '';
+    usernames.forEach(username => {
+      if (username === myUsername) return;
+      const li = document.createElement('li');
 
-        form.addEventListener('submit', (e) => {
-          e.preventDefault();
-          if (input.value && selectedUser) {
-            socket.emit('private message', {
-              to: selectedUser,
-              message: input.value
-            });
-            addMessage(`Du till ${selectedUser}: ${input.value}`);
-            input.value = '';
-          }
-        });
+      // Visa namn + olästa meddelanden om > 0
+      const unread = unreadCounts[username] || 0;
+      li.textContent = username + (unread > 0 ? ` (${unread})` : '');
+      
+      li.classList.add('user');
+      if (username === selectedUser) li.classList.add('selected');
+      li.onclick = () => {
+        selectedUser = username;
+        chatWith.textContent = `Chatta med: ${selectedUser}`;
+        input.disabled = false;
+        sendBtn.disabled = false;
+        typingIndicator.textContent = '';
 
-        socket.on('private message', ({ from, message }) => {
-          addMessage(`${from} till dig: ${message}`);
+        // Nollställ olästa för vald användare
+        unreadCounts[selectedUser] = 0;
 
-          if (from !== selectedUser) {
-            const audio = document.getElementById('notification-sound');
-            if (audio) audio.play();
-
-            const li = Array.from(usersList.children).find(li => li.textContent === from);
-            if (li) {
-              li.classList.add('notify');
-              setTimeout(() => li.classList.remove('notify'), 2000);
-            }
-          }
-        });
-
-        function addMessage(msg) {
-          const li = document.createElement('li');
-          li.textContent = msg;
-          messages.appendChild(li);
-          messages.scrollTop = messages.scrollHeight;
-        }
-      }
+        renderChat(selectedUser);
+        updateUserList();
+      };
+      usersList.appendChild(li);
     });
-  </script>
+  });
+
+  function updateUserList() {
+    Array.from(usersList.children).forEach(li => {
+      // Rensa texten innan vi sätter den igen (för att uppdatera olästa)
+      const username = li.textContent.replace(/\s\(\d+\)$/, '');
+      li.classList.toggle('selected', username === selectedUser);
+
+      const unread = unreadCounts[username] || 0;
+      li.textContent = username + (unread > 0 ? ` (${unread})` : '');
+    });
+  }
+
+  // Lägg till meddelande i chatthistorik
+  function addMessageToHistory(username, from, message) {
+    if (!chatHistory[username]) chatHistory[username] = [];
+    chatHistory[username].push({ from, message, time: new Date() });
+  }
+
+  // Rendera chatthistorik för vald användare
+  function renderChat(username) {
+    messages.innerHTML = '';
+    if (!chatHistory[username]) return;
+    chatHistory[username].forEach(({ from, message, time }) => {
+      addMessage(formatMessage(from, message, time));
+    });
+  }
+
+  // Formatera meddelande med tid längst till höger
+  function formatMessage(from, message, time) {
+    const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return { text: `${from}: ${message}`, time: timeStr };
+  }
+
+  // Lägg till meddelande i DOM med tid högerställd
+  function addMessage({ text, time }) {
+    const li = document.createElement('li');
+    li.innerHTML = `<span>${text}</span><span style="float:right; color: gray; font-size: 0.8em;">[${time}]</span>`;
+    messages.appendChild(li);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (input.value && selectedUser) {
+      addMessageToHistory(selectedUser, myUsername, input.value);
+      renderChat(selectedUser);
+
+      socket.emit('private message', {
+        to: selectedUser,
+        message: input.value
+      });
+
+      const audio = new Audio('/2.mp3');
+      audio.play();
+
+      input.value = '';
+      socket.emit('stop typing', { to: selectedUser });
+    }
+  });
+
+  socket.on('private message', ({ from, message }) => {
+    addMessageToHistory(from, from, message);
+
+    if (from === selectedUser) {
+      renderChat(selectedUser);
+    } else {
+      // Öka olästa om meddelandet är från annan användare än vald
+      unreadCounts[from] = (unreadCounts[from] || 0) + 1;
+      updateUserList();
+    }
+
+    // Highlighta användaren som skickade meddelandet
+    const senderLi = Array.from(usersList.children).find(li => {
+      const username = li.textContent.replace(/\s\(\d+\)$/, '');
+      return username === from;
+    });
+    if (senderLi) {
+      senderLi.classList.add('highlight');
+      setTimeout(() => senderLi.classList.remove('highlight'), 1000);
+    }
+
+    const audio = new Audio('/notification.mp3');
+    audio.play();
+  });
+
+  // Skrivindikator
+  input.addEventListener('input', () => {
+    if (!selectedUser) return;
+    socket.emit('typing', { to: selectedUser });
+
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+      socket.emit('stop typing', { to: selectedUser });
+    }, 1000);
+  });
+
+  socket.on('typing', ({ from }) => {
+    typingIndicator.textContent = `${from} skriver...`;
+  });
+
+  socket.on('stop typing', ({ from }) => {
+    typingIndicator.textContent = '';
+  });
+</script>
 
 </body>
 </html>
