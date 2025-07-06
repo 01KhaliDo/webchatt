@@ -7,16 +7,16 @@
 </head>
 <body>
   <div id="user-list">
-    <h3>Användare</h3>
+    <h3>User</h3>
     <ul id="users"></ul>
   </div>
 
   <div id="chat">
-    <h3 id="chat-with">Välj en användare att chatta med</h3>
+    <h3 id="chat-with">Select a user to chat with</h3>
     <div id="typing-indicator" style="font-style: italic; color: gray; height: 20px;"></div>
     <ul id="messages"></ul>
     <form id="form" action="">
-      <input id="input" autocomplete="off" placeholder="Skriv meddelande..." disabled />
+      <input id="input" autocomplete="off" placeholder="Type a message..." disabled />
       <button id="send" disabled>Skicka</button>
     </form>
   </div>
@@ -32,7 +32,7 @@
   const unreadCounts = {}; // { username: number }
 
   while (!myUsername) {
-    myUsername = prompt('Ange ditt användarnamn:');
+    myUsername = prompt('Enter your username::');
   }
 
   const socket = io({
@@ -214,7 +214,7 @@
   });
 
   socket.on('typing', ({ from }) => {
-    typingIndicator.textContent = `${from} skriver...`;
+    typingIndicator.textContent = `${from} typing...`;
   });
 
   socket.on('stop typing', ({ from }) => {
